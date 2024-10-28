@@ -1,19 +1,17 @@
-# ai.py
-
 import random
 import time
 from pieces import King, Rook, Queen, Bishop, Knight, Pawn
 
 class AI:
-    def __init__(self, difficulty, color):
-        self.difficulty = difficulty
+    def __init__(self, color):
         self.color = color
         self.opponent_color = 'black' if color == 'white' else 'white'
-        self.depth = {'easy': 2, 'medium': 3, 'hard': 4}[difficulty]
+        self.depth = 4  # Always use depth 4, corresponding to hard mode
         self.piece_square_tables = self.initialize_piece_square_tables()
         self.transposition_table = {}
         self.position_history = {}
         self.zobrist_keys = self.initialize_zobrist_keys()
+
 
     def initialize_piece_square_tables(self):
         piece_square_tables = {

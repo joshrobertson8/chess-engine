@@ -144,7 +144,7 @@ class Board:
                         print("Queen-side castling performed.")
             
             # En Passant (Placeholder)
-            # TODO: Implement en passant logic if desired
+            # TODO: Implement en passant logic 
             
             # Make the move
             self.board[end_row][end_col] = piece
@@ -262,22 +262,33 @@ class Board:
 
     def is_stalemate(self, color):
         print(f"Checking for stalemate for {color}...")
+
+        # Ensure we are checking for the current player's turn.
+        if self.current_turn != color:
+            print(f"It's not {color}'s turn, skipping stalemate check.")
+            return False
+
+        # A player in check cannot be in stalemate.
         if self.is_in_check(color):
             print(f"{color} is in check, so no stalemate.")
             return False
 
+        # Iterate over all the player's pieces and check for any valid moves.
         for row, col, piece in self.get_all_pieces(color):
             for end_row in range(8):
                 for end_col in range(8):
                     if piece.is_valid_move(row, col, end_row, end_col, self):
+                        # Make a hypothetical move and check if it resolves the situation.
                         if self.make_move(row, col, end_row, end_col):
-                            if not self.is_in_check(color):
-                                self.unmake_move()
-                                print(f"{color} is not in stalemate because move from ({row}, {col}) to ({end_row}, {end_col}) is possible.")
-                                return False
+                            # Undo the move to maintain the board state.
                             self.unmake_move()
-        print(f"{color} is in stalemate.")
+                            print(f"{color} is not in stalemate because a move from ({row}, {col}) to ({end_row}, {end_col}) is possible.")
+                            return False
+
+        print(f"No valid moves found for {color}. It is a stalemate.")
         return True
+
+
 
     def is_game_over(self):
         return (self.is_checkmate('white') or self.is_checkmate('black') or

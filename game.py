@@ -1,5 +1,3 @@
-# game.py
-
 import pygame
 from board import Board
 from ai import AI
@@ -10,10 +8,10 @@ class Game:
         self.board = Board()
         self.selected_piece = None
         self.font = pygame.font.SysFont(None, 36)
-        self.ai = None
+        self.ai = AI('black')  # AI always plays as black with hard difficulty
         self.game_over = False
         self.winner = None
-        self.setup_ai()
+
 
     def setup_ai(self):
         difficulty = self.display_menu()
@@ -131,3 +129,40 @@ class Game:
             self.handle_events()
             self.update()
             self.draw()
+
+    def handle_player_move(self, start_pos, end_pos):
+        # Check if the current player is in check.
+        if self.board.is_in_check(self.board.current_turn):
+            print(f"{self.board.current_turn} is in check, must move out of check.")
+        
+            # Get all legal moves that resolve the check.
+            legal_moves = self.get_legal_moves_resolving_check()
+        
+            # Validate if the player's move is among the legal moves.
+            if (start_pos, end_pos) not in legal_moves:
+                print("This move does not resolve the check. Please make a move that gets out of check.")
+                return False
+    
+        # Proceed with making the move if it's legal.
+        return self.board.make_move(start_pos, end_pos)
+
+    def get_legal_moves_resolving_check(self):
+        legal_moves = []
+        current_color = self.board.current_turn
+    
+        # Get all possible moves for the current player.
+        for row, col, piece in self.board.get_all_pieces(current_color):
+            for end_row in range(8):
+                for end_col in range(8):
+                    if piece.is_valid_move(row, col, end_row, end_col, self.board):
+                        # Simulate the move.
+                        self.board.make_move((row, col), (end_row, end_col))
+                    
+                        # Check if the move resolves the check.
+                        if not self.board.is_in_check(current_color):
+                            legal_moves.append(((row, col), (end_row, end_col)))
+                    
+                        # Undo the move to restore the board state.
+                        self.board.unmake_move()
+    
+        return legal_moves
