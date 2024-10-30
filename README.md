@@ -31,5 +31,6 @@ This project is a **Python-based chess game** with a graphical interface and an 
 ### Cloning the Repository
 To get started, clone the repository using the following command:
 ```bash
-git clone https://github.com/joshrobertson8/chess-ai.git
+git clone https://github.com/joshrobertson8/chess-engine.git
+cd chess-engine
 cd python main.py
