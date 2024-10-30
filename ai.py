@@ -6,81 +6,19 @@ class AI:
     def __init__(self, color):
         self.color = color
         self.opponent_color = 'black' if color == 'white' else 'white'
-        self.depth = 4  # Always use depth 4, corresponding to hard mode
+        self.depth = 4
         self.piece_square_tables = self.initialize_piece_square_tables()
         self.transposition_table = {}
-        self.position_history = {}
         self.zobrist_keys = self.initialize_zobrist_keys()
-
 
     def initialize_piece_square_tables(self):
         piece_square_tables = {
-            'pawn': [
-                [0, 0, 0, 0, 0, 0, 0, 0],
-                [5, 10, 10, -20, -20, 10, 10, 5],
-                [5, -5, -10, 0, 0, -10, -5, 5],
-                [0, 0, 0, 20, 20, 0, 0, 0],
-                [5, 5, 10, 25, 25, 10, 5, 5],
-                [10, 10, 20, 30, 30, 20, 10, 10],
-                [50, 50, 50, 50, 50, 50, 50, 50],
-                [0, 0, 0, 0, 0, 0, 0, 0]
-            ],
-            'queen': [
-                [-20, -10, -10, -5, -5, -10, -10, -20],
-                [-10, 0, 0, 0, 0, 0, 0, -10],
-                [-10, 0, 5, 5, 5, 5, 0, -10],
-                [-5, 0, 5, 5, 5, 5, 0, -5],
-                [0, 0, 5, 5, 5, 5, 0, -5],
-                [-10, 5, 5, 5, 5, 5, 0, -10],
-                [-10, 0, 5, 0, 0, 0, 0, -10],
-                [-20, -10, -10, -5, -5, -10, -10, -20]
-            ],
-            'knight': [
-                [-50, -40, -30, -30, -30, -30, -40, -50],
-                [-40, -20, 0, 5, 5, 0, -20, -40],
-                [-30, 5, 10, 15, 15, 10, 5, -30],
-                [-30, 0, 15, 20, 20, 15, 0, -30],
-                [-30, 5, 15, 20, 20, 15, 5, -30],
-                [-30, 0, 10, 15, 15, 10, 0, -30],
-                [-40, -20, 0, 0, 0, 0, -20, -40],
-                [-50, -40, -30, -30, -30, -30, -40, -50]
-            ],
-            'bishop': [
-                [-20, -10, -10, -10, -10, -10, -10, -20],
-                [-10, 5, 0, 0, 0, 0, 5, -10],
-                [-10, 10, 10, 10, 10, 10, 10, -10],
-                [-10, 0, 10, 10, 10, 10, 0, -10],
-                [-10, 5, 5, 10, 10, 5, 5, -10],
-                [-10, 0, 5, 10, 10, 5, 0, -10],
-                [-10, 0, 0, 0, 0, 0, 0, -10],
-                [-20, -10, -10, -10, -10, -10, -10, -20]
-            ],
-            'rook': [
-                [0, 0, 0, 0, 0, 0, 0, 0],
-                [5, 10, 10, 10, 10, 10, 10, 5],
-                [-5, 0, 0, 0, 0, 0, 0, -5],
-                [-5, 0, 0, 0, 0, 0, 0, -5],
-                [-5, 0, 0, 0, 0, 0, 0, -5],
-                [-5, 0, 0, 0, 0, 0, 0, -5],
-                [-5, 0, 0, 0, 0, 0, 0, -5],
-                [0, 0, 0, 5, 5, 0, 0, 0]
-            ],
-            'king': [
-                [-30, -40, -40, -50, -50, -40, -40, -30],
-                [-30, -40, -40, -50, -50, -40, -40, -30],
-                [-30, -40, -40, -50, -50, -40, -40, -30],
-                [-30, -40, -40, -50, -50, -40, -40, -30],
-                [-20, -30, -30, -40, -40, -30, -30, -20],
-                [-10, -20, -20, -20, -20, -20, -20, -10],
-                [20, 20, 0, 0, 0, 0, 20, 20],
-                [20, 30, 10, 0, 0, 10, 30, 20]
-            ]
+            # Define piece-square tables here
         }
         return piece_square_tables
 
     def initialize_zobrist_keys(self):
-        import random
-        random.seed(0)  # For reproducibility
+        random.seed(0)
         zobrist = {}
         pieces = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king']
         colors = ['white', 'black']
@@ -92,10 +30,8 @@ class AI:
         return zobrist
 
     def get_move(self, board):
-        print(f"AI ({self.color}) is calculating move...")
         moves = self.get_all_moves(board, self.color)
         if not moves:
-            print(f"AI ({self.color}) has no moves to play.")
             return None
 
         best_score = float('-inf')
@@ -106,61 +42,48 @@ class AI:
         start_time = time.time()
 
         for move in self.order_moves(moves, board):
-            board.make_move(*move[0], *move[1])
+            board.make_move(*move[0], *move[1], switch_turn=False, validate=False)
             score = self.alpha_beta(board, self.depth - 1, alpha, beta, False)
-            board.unmake_move()
-            print(f"Evaluated move {move} with score {score}")
+            board.unmake_move(switch_turn=False)
             if score > best_score:
                 best_score = score
                 best_move = move
             alpha = max(alpha, best_score)
             if beta <= alpha:
-                print("Alpha-Beta pruning activated.")
-                break  # Alpha-Beta pruning
-
-        print(f"AI decision time: {time.time() - start_time:.4f} seconds")
-        if best_move:
-            print(f"AI ({self.color}) selects move from {best_move[0]} to {best_move[1]} with score {best_score}")
-        else:
-            print(f"AI ({self.color}) could not find a valid move.")
+                break
 
         return best_move
 
     def alpha_beta(self, board, depth, alpha, beta, is_maximizing):
         board_hash = self.hash_board(board)
         if board_hash in self.transposition_table:
-            print(f"Transposition table hit for hash {board_hash} with score {self.transposition_table[board_hash]}")
             return self.transposition_table[board_hash]
 
         if depth == 0 or board.is_game_over():
-            eval_score = self.evaluate_board(board)
-            print(f"Depth {depth}: Evaluated board with score {eval_score}")
-            return eval_score
+            return self.evaluate_board(board)
 
         if is_maximizing:
             max_eval = float('-inf')
             for move in self.order_moves(self.get_all_moves(board, self.color), board):
-                board.make_move(*move[0], *move[1])
+                board.make_move(*move[0], *move[1], switch_turn=False, validate=False)
                 eval = self.alpha_beta(board, depth - 1, alpha, beta, False)
-                board.unmake_move()
+                board.unmake_move(switch_turn=False)
                 max_eval = max(max_eval, eval)
                 alpha = max(alpha, eval)
                 if beta <= alpha:
-                    print("Alpha-Beta pruning activated in maximizing player.")
-                    break  # Alpha-Beta pruning
+                    break
             self.transposition_table[board_hash] = max_eval
             return max_eval
         else:
             min_eval = float('inf')
             for move in self.order_moves(self.get_all_moves(board, self.opponent_color), board):
-                board.make_move(*move[0], *move[1])
+                board.make_move(*move[0], *move[1], switch_turn=False, validate=False)
                 eval = self.alpha_beta(board, depth - 1, alpha, beta, True)
-                board.unmake_move()
+                board.unmake_move(switch_turn=False)
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
                 if beta <= alpha:
-                    print("Alpha-Beta pruning activated in minimizing player.")
-                    break  # Alpha-Beta pruning
+                    break
             self.transposition_table[board_hash] = min_eval
             return min_eval
 
@@ -184,30 +107,23 @@ class AI:
                     if piece.is_valid_move(row, col, end_row, end_col, board):
                         target_piece = board.get_piece(end_row, end_col)
                         if not target_piece or target_piece.color != color:
-                            moves.append(((row, col), (end_row, end_col)))
+                            if not board.would_be_in_check(color, row, col, end_row, end_col):
+                                moves.append(((row, col), (end_row, end_col)))
         return moves
 
     def order_moves(self, moves, board):
-        # Order moves to improve alpha-beta pruning efficiency
         def move_score(move):
             start, end = move
             target = board.get_piece(*end)
             score = 0
             if target:
-                score += self.evaluate_piece_value(target)  # Capture moves have higher scores
-            # Prefer moves by higher value pieces
+                score += self.evaluate_piece_value(target)
             piece = board.get_piece(*start)
             piece_order = {'queen': 6, 'rook': 5, 'bishop': 3, 'knight': 3, 'pawn': 1, 'king': 10}
             score += piece_order.get(piece.name, 0)
             return score
 
         return sorted(moves, key=move_score, reverse=True)
-
-    def evaluate_move(self, board, move):
-        piece = board.get_piece(*move[1])
-        if piece:
-            return self.evaluate_piece_value(piece)
-        return 0
 
     def evaluate_board(self, board):
         piece_value = {
@@ -226,14 +142,12 @@ class AI:
                     value = piece_value.get(piece.name, 0)
                     if piece.color == self.color:
                         total += value + self.evaluate_piece_position(piece, row_index, col_index)
-                        # Additional heuristics for AI's own pieces
                         if board.is_in_check(self.color):
-                            total -= 200  # Penalize being in check
+                            total -= 200
                     else:
                         total -= value + self.evaluate_piece_position(piece, row_index, col_index)
-                        # Additional heuristics for opponent's pieces
                         if board.is_in_check(self.opponent_color):
-                            total += 200  # Reward if opponent is in check
+                            total += 200
         return total
 
     def evaluate_piece_position(self, piece, row, col):

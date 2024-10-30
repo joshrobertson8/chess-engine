@@ -1,3 +1,4 @@
+# game.py
 import pygame
 from board import Board
 from ai import AI
@@ -11,43 +12,6 @@ class Game:
         self.ai = AI('black')  # AI always plays as black with hard difficulty
         self.game_over = False
         self.winner = None
-
-
-    def setup_ai(self):
-        difficulty = self.display_menu()
-        if difficulty:
-            self.ai = AI(difficulty, 'black')  # AI plays as black
-            print(f"AI set to difficulty: {difficulty}")
-        else:
-            print("No difficulty selected. Exiting game.")
-            pygame.quit()
-            exit()
-
-    def display_menu(self):
-        menu = True
-        while menu:
-            self.screen.fill((0, 0, 0))
-            title_text = self.font.render("Select Difficulty Level", True, (255, 255, 255))
-            easy_text = self.font.render("1. Easy", True, (255, 255, 255))
-            medium_text = self.font.render("2. Medium", True, (255, 255, 255))
-            hard_text = self.font.render("3. Hard", True, (255, 255, 255))
-            self.screen.blit(title_text, (250, 200))
-            self.screen.blit(easy_text, (350, 300))
-            self.screen.blit(medium_text, (350, 350))
-            self.screen.blit(hard_text, (350, 400))
-            pygame.display.flip()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_1:
-                        return 'easy'
-                    elif event.key == pygame.K_2:
-                        return 'medium'
-                    elif event.key == pygame.K_3:
-                        return 'hard'
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -75,6 +39,7 @@ class Game:
                                 self.check_game_over()
                             else:
                                 print("Move failed. Invalid move.")
+                                # Optional: Provide feedback to the player
                         else:
                             print("Clicked on the same square. Deselecting piece.")
                         self.selected_piece = None
@@ -129,40 +94,3 @@ class Game:
             self.handle_events()
             self.update()
             self.draw()
-
-    def handle_player_move(self, start_pos, end_pos):
-        # Check if the current player is in check.
-        if self.board.is_in_check(self.board.current_turn):
-            print(f"{self.board.current_turn} is in check, must move out of check.")
-        
-            # Get all legal moves that resolve the check.
-            legal_moves = self.get_legal_moves_resolving_check()
-        
-            # Validate if the player's move is among the legal moves.
-            if (start_pos, end_pos) not in legal_moves:
-                print("This move does not resolve the check. Please make a move that gets out of check.")
-                return False
-    
-        # Proceed with making the move if it's legal.
-        return self.board.make_move(start_pos, end_pos)
-
-    def get_legal_moves_resolving_check(self):
-        legal_moves = []
-        current_color = self.board.current_turn
-    
-        # Get all possible moves for the current player.
-        for row, col, piece in self.board.get_all_pieces(current_color):
-            for end_row in range(8):
-                for end_col in range(8):
-                    if piece.is_valid_move(row, col, end_row, end_col, self.board):
-                        # Simulate the move.
-                        self.board.make_move((row, col), (end_row, end_col))
-                    
-                        # Check if the move resolves the check.
-                        if not self.board.is_in_check(current_color):
-                            legal_moves.append(((row, col), (end_row, end_col)))
-                    
-                        # Undo the move to restore the board state.
-                        self.board.unmake_move()
-    
-        return legal_moves

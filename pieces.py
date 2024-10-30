@@ -6,6 +6,14 @@ class Piece:
         self.name = ''
         self.has_moved = False
 
+    def __deepcopy__(self, memo):
+        # Create a new instance of the piece
+        cls = self.__class__
+        result = cls(self.color)
+        result.name = self.name
+        result.has_moved = self.has_moved
+        return result
+    
     def is_valid_move(self, start_row, start_col, end_row, end_col, board):
         raise NotImplementedError("This method should be implemented by subclasses.")
 
