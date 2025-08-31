@@ -102,9 +102,30 @@ class Queen(Piece):
         self.name = 'queen'
 
     def is_valid_move(self, start_row, start_col, end_row, end_col, board):
-        rook_move = Rook(self.color).is_valid_move(start_row, start_col, end_row, end_col, board)
-        bishop_move = Bishop(self.color).is_valid_move(start_row, start_col, end_row, end_col, board)
-        return rook_move or bishop_move
+        # Inline rook/bishop logic to avoid temporary objects
+        if start_row == end_row:
+            step = 1 if end_col > start_col else -1
+            for col in range(start_col + step, end_col, step):
+                if board.get_piece(start_row, col):
+                    return False
+            return True
+        if start_col == end_col:
+            step = 1 if end_row > start_row else -1
+            for row in range(start_row + step, end_row, step):
+                if board.get_piece(row, start_col):
+                    return False
+            return True
+        if abs(start_row - end_row) == abs(start_col - end_col):
+            step_row = 1 if end_row > start_row else -1
+            step_col = 1 if end_col > start_col else -1
+            for i in range(1, abs(end_row - start_row)):
+                if board.get_piece(start_row + i * step_row, start_col + i * step_col):
+                    return False
+            target_piece = board.get_piece(end_row, end_col)
+            if not target_piece or target_piece.color != self.color:
+                return True
+            return False
+        return False
 
 class King(Piece):
     def __init__(self, color):

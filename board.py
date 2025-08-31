@@ -1,4 +1,5 @@
 import pygame
+import copy
 from pieces import *
 import os
 
@@ -154,7 +155,7 @@ class Board:
 
     def unmake_move(self, switch_turn=True):
         if not self.move_history:
-            return False
+            return None
 
         last_move = self.move_history.pop()
         piece = last_move['piece']
@@ -182,7 +183,7 @@ class Board:
         if switch_turn:
             self.current_turn = 'black' if self.current_turn == 'white' else 'white'
 
-        return True
+        return last_move
 
     def promote_pawn(self, pawn, row, col):
         self.board[row][col] = Queen(pawn.color)
@@ -254,9 +255,194 @@ class Board:
 
     def get_valid_moves(self, piece, row, col):
         moves = []
-        for end_row in range(8):
-            for end_col in range(8):
-                if piece.is_valid_move(row, col, end_row, end_col, self):
-                    if not self.would_be_in_check(piece.color, row, col, end_row, end_col):
-                        moves.append((end_row, end_col))
+        for end_row, end_col in self.generate_pseudolegal_moves_from_square(row, col):
+            if not self.would_be_in_check(piece.color, row, col, end_row, end_col):
+                moves.append((end_row, end_col))
+        return moves
+
+    def clone(self):
+        # Create a deep copy suitable for search, without reusing move history
+        new_board = Board()
+        new_board.board = [[copy.deepcopy(self.board[r][c]) for c in range(8)] for r in range(8)]
+        new_board.current_turn = self.current_turn
+        new_board.move_history = []
+        return new_board
+
+    def to_fen(self):
+        # Piece placement
+        rows = []
+        for r in range(8):
+            fen_row = ''
+            empty = 0
+            for c in range(8):
+                p = self.get_piece(r, c)
+                if not p:
+                    empty += 1
+                else:
+                    if empty:
+                        fen_row += str(empty)
+                        empty = 0
+                    ch = {
+                        'pawn': 'p', 'knight': 'n', 'bishop': 'b',
+                        'rook': 'r', 'queen': 'q', 'king': 'k'
+                    }.get(p.name, '?')
+                    if p.color == 'white':
+                        ch = ch.upper()
+                    fen_row += ch
+            if empty:
+                fen_row += str(empty)
+            rows.append(fen_row)
+        # FEN is rank 8 to 1, our row 0 is rank 8
+        placement = '/'.join(rows)
+
+        # Active color
+        active = 'w' if self.current_turn == 'white' else 'b'
+
+        # Castling rights inferred from has_moved flags at start squares
+        rights = ''
+        wk = self.get_piece(7, 4)
+        wr_a = self.get_piece(7, 0)
+        wr_h = self.get_piece(7, 7)
+        if isinstance(wk, King) and not wk.has_moved:
+            if isinstance(wr_h, Rook) and not wr_h.has_moved:
+                rights += 'K'
+            if isinstance(wr_a, Rook) and not wr_a.has_moved:
+                rights += 'Q'
+        bk = self.get_piece(0, 4)
+        br_a = self.get_piece(0, 0)
+        br_h = self.get_piece(0, 7)
+        if isinstance(bk, King) and not bk.has_moved:
+            if isinstance(br_h, Rook) and not br_h.has_moved:
+                rights += 'k'
+            if isinstance(br_a, Rook) and not br_a.has_moved:
+                rights += 'q'
+        if rights == '':
+            rights = '-'
+
+        # En passant target square: not tracked (no en passant), use '-'
+        ep = '-'
+
+        # Halfmove clock and fullmove number: minimal viable values
+        halfmove = '0'
+        fullmove = str(1 + len(self.move_history) // 2)
+
+        return f"{placement} {active} {rights} {ep} {halfmove} {fullmove}"
+
+    def generate_pseudolegal_moves(self, color):
+        moves = []
+        for row in range(8):
+            for col in range(8):
+                piece = self.get_piece(row, col)
+                if piece and piece.color == color:
+                    for end_row, end_col in self.generate_pseudolegal_moves_from_square(row, col):
+                        moves.append(((row, col), (end_row, end_col)))
+        return moves
+
+    def generate_pseudolegal_moves_from_square(self, row, col):
+        piece = self.get_piece(row, col)
+        if not piece:
+            return []
+
+        moves = []
+        color = piece.color
+        opponent = 'black' if color == 'white' else 'white'
+
+        def add_if_empty_or_capture(r, c):
+            if 0 <= r < 8 and 0 <= c < 8:
+                target = self.get_piece(r, c)
+                if not target or target.color == opponent:
+                    moves.append((r, c))
+
+        if isinstance(piece, Pawn):
+            direction = -1 if color == 'white' else 1
+            start_row = 6 if color == 'white' else 1
+
+            one_ahead_r, one_ahead_c = row + direction, col
+            if 0 <= one_ahead_r < 8 and not self.get_piece(one_ahead_r, one_ahead_c):
+                moves.append((one_ahead_r, one_ahead_c))
+                two_ahead_r = row + 2 * direction
+                if row == start_row and not self.get_piece(two_ahead_r, col):
+                    moves.append((two_ahead_r, col))
+
+            for dc in (-1, 1):
+                tr, tc = row + direction, col + dc
+                if 0 <= tr < 8 and 0 <= tc < 8:
+                    target = self.get_piece(tr, tc)
+                    if target and target.color == opponent:
+                        moves.append((tr, tc))
+            # En passant not implemented
+
+        elif isinstance(piece, Knight):
+            for dr, dc in [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]:
+                add_if_empty_or_capture(row + dr, col + dc)
+
+        elif isinstance(piece, Bishop):
+            for dr, dc in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                r, c = row + dr, col + dc
+                while 0 <= r < 8 and 0 <= c < 8:
+                    target = self.get_piece(r, c)
+                    if not target:
+                        moves.append((r, c))
+                    else:
+                        if target.color == opponent:
+                            moves.append((r, c))
+                        break
+                    r += dr
+                    c += dc
+
+        elif isinstance(piece, Rook):
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                r, c = row + dr, col + dc
+                while 0 <= r < 8 and 0 <= c < 8:
+                    target = self.get_piece(r, c)
+                    if not target:
+                        moves.append((r, c))
+                    else:
+                        if target.color == opponent:
+                            moves.append((r, c))
+                        break
+                    r += dr
+                    c += dc
+
+        elif isinstance(piece, Queen):
+            for dr, dc in [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]:
+                r, c = row + dr, col + dc
+                while 0 <= r < 8 and 0 <= c < 8:
+                    target = self.get_piece(r, c)
+                    if not target:
+                        moves.append((r, c))
+                    else:
+                        if target.color == opponent:
+                            moves.append((r, c))
+                        break
+                    r += dr
+                    c += dc
+
+        elif isinstance(piece, King):
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    if dr == 0 and dc == 0:
+                        continue
+                    add_if_empty_or_capture(row + dr, col + dc)
+
+            # Castling (pseudolegal): squares clear and rook unmoved
+            if not piece.has_moved and row in (0, 7):
+                # Kingside
+                rook = self.get_piece(row, 7)
+                if isinstance(rook, Rook) and not rook.has_moved:
+                    if not self.get_piece(row, 5) and not self.get_piece(row, 6):
+                        # Ensure king doesn't castle out of, through, or into check
+                        if not self.is_in_check(color) and \
+                           not self.would_be_in_check(color, row, col, row, 5) and \
+                           not self.would_be_in_check(color, row, col, row, 6):
+                            moves.append((row, 6))
+                # Queenside
+                rook = self.get_piece(row, 0)
+                if isinstance(rook, Rook) and not rook.has_moved:
+                    if not self.get_piece(row, 1) and not self.get_piece(row, 2) and not self.get_piece(row, 3):
+                        if not self.is_in_check(color) and \
+                           not self.would_be_in_check(color, row, col, row, 3) and \
+                           not self.would_be_in_check(color, row, col, row, 2):
+                            moves.append((row, 2))
+
         return moves
