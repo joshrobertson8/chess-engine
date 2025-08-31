@@ -30,6 +30,8 @@ class Game:
         self.live_chip_rect = None
         # Built-in engine analysis only
         self.last_move_color = None
+        self.waiting_for_white = False
+        self.last_ai_move_count = -1  # Track AI moves to prevent duplicates
 
         # UI palette
         self.UI_BG = (30, 34, 40)
@@ -128,6 +130,9 @@ class Game:
                                 if DEBUG:
                                     print(f"Move successful: {piece.color} {piece.name} moved to ({row}, {col})")
                                 self.last_move_color = 'white'
+                                self.waiting_for_white = False  # White has moved, AI can move next
+                                # Reset AI move tracking since it's a new turn sequence
+                                self.last_ai_move_count = -1
                                 self.check_game_over()
                             else:
                                 if DEBUG:
@@ -139,12 +144,40 @@ class Game:
                         self.selected_piece = None
 
     def update(self):
+        # Keep last-move cache synced with current history
+        self._refresh_last_move_color()
+        
+        # Only allow AI to move if it's actually AI's turn and no recent AI move
         if not self.game_over and self.board.current_turn == 'black' and not self.in_review:
             if DEBUG:
                 print("AI's turn.")
-            # Guard against accidental consecutive AI moves
-            if self.last_move_color == 'black':
+            
+            # Enhanced guard against consecutive AI moves
+            current_move_count = len(self.board.move_history)
+            
+            # Check if AI already moved for this turn
+            if self.last_ai_move_count == current_move_count:
+                if DEBUG:
+                    print("Skipping AI move - AI already moved this turn")
                 return
+            
+            # Check both the last move color and ensure we're not waiting for white
+            if self.last_move_color == 'black':
+                if DEBUG:
+                    print("Skipping AI move - last move was also by black")
+                return
+                
+            if self.waiting_for_white:
+                if DEBUG:
+                    print("Skipping AI move - waiting for white to move")
+                return
+            
+            # Double-check that it's really black's turn
+            if self.board.current_turn != 'black':
+                if DEBUG:
+                    print("Skipping AI move - not black's turn")
+                return
+                
             move = self.ai.get_move(self.board)
             if move:
                 start_pos, end_pos = move
@@ -154,6 +187,8 @@ class Game:
                     if DEBUG:
                         print(f"AI moved from {start_pos} to {end_pos}")
                     self.last_move_color = 'black'
+                    self.waiting_for_white = True
+                    self.last_ai_move_count = len(self.board.move_history)  # Track this move
                     self.check_game_over()
                 else:
                     if DEBUG:
@@ -229,6 +264,8 @@ class Game:
         if mv:
             self.redo_stack.append(mv)
             self.in_review = True
+            # Reset AI tracking when entering review mode
+            self.last_ai_move_count = -1
             self._refresh_last_move_color()
 
     def step_forward(self):
@@ -240,6 +277,8 @@ class Game:
             self.board.make_move(sr, sc, er, ec, switch_turn=True, validate=False)
         if not self.redo_stack:
             self.in_review = False
+            # Reset AI tracking when exiting review mode
+            self.last_ai_move_count = -1
         self._refresh_last_move_color()
 
     def go_to_start(self):
@@ -249,12 +288,16 @@ class Game:
                 break
             self.redo_stack.append(mv)
         self.in_review = True
+        # Reset AI tracking when going to start
+        self.last_ai_move_count = -1
         self._refresh_last_move_color()
 
     def go_to_end(self):
         while self.redo_stack:
             self.step_forward()
         self.in_review = False
+        # Reset AI tracking when going to end
+        self.last_ai_move_count = -1
         self._refresh_last_move_color()
 
     def coords_to_square(self, r, c):
@@ -273,8 +316,18 @@ class Game:
     def _refresh_last_move_color(self):
         if not self.board.move_history:
             self.last_move_color = None
+            # If no moves have been made, white should go first
+            if self.board.current_turn == 'white':
+                self.waiting_for_white = False
         else:
-            self.last_move_color = self.board.move_history[-1]['piece'].color
+            last_move_piece = self.board.move_history[-1]['piece']
+            self.last_move_color = last_move_piece.color
+            
+            # Additional consistency check: if the current turn doesn't match
+            # what we'd expect after the last move, something might be wrong
+            expected_turn = 'white' if self.last_move_color == 'black' else 'black'
+            if self.board.current_turn != expected_turn and DEBUG:
+                print(f"WARNING: Turn inconsistency. Last move: {self.last_move_color}, Current turn: {self.board.current_turn}, Expected: {expected_turn}")
 
     def draw_icon_button(self, rect, icon, disabled=False):
         mouse = pygame.mouse.get_pos()
