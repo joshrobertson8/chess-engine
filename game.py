@@ -32,6 +32,7 @@ class Game:
         self.last_move_color = None
         self.waiting_for_white = False
         self.last_ai_move_count = -1  # Track AI moves to prevent duplicates
+        self.ai_moved_this_turn = False  # Flag to prevent AI from moving multiple times per turn
 
         # UI palette
         self.UI_BG = (30, 34, 40)
@@ -133,6 +134,7 @@ class Game:
                                 self.waiting_for_white = False  # White has moved, AI can move next
                                 # Reset AI move tracking since it's a new turn sequence
                                 self.last_ai_move_count = -1
+                                self.ai_moved_this_turn = False  # Reset AI move flag for new turn
                                 self.check_game_over()
                             else:
                                 if DEBUG:
@@ -151,6 +153,12 @@ class Game:
         if not self.game_over and self.board.current_turn == 'black' and not self.in_review:
             if DEBUG:
                 print("AI's turn.")
+            
+            # Check if AI already moved this turn
+            if self.ai_moved_this_turn:
+                if DEBUG:
+                    print("Skipping AI move - AI already moved this turn")
+                return
             
             # Enhanced guard against consecutive AI moves
             current_move_count = len(self.board.move_history)
@@ -178,6 +186,9 @@ class Game:
                     print("Skipping AI move - not black's turn")
                 return
                 
+            # Mark that AI is attempting to move this turn
+            self.ai_moved_this_turn = True
+            
             move = self.ai.get_move(self.board)
             if move:
                 start_pos, end_pos = move
@@ -193,11 +204,15 @@ class Game:
                 else:
                     if DEBUG:
                         print("AI attempted an invalid move.")
+                    # Reset the flag if move failed
+                    self.ai_moved_this_turn = False
             else:
                 if DEBUG:
                     print("AI has no valid moves. Game over.")
                 self.game_over = True
                 self.winner = 'White'
+                # Reset the flag if no moves available
+                self.ai_moved_this_turn = False
 
     def draw(self):
         # Fill sidebar background first
@@ -266,6 +281,7 @@ class Game:
             self.in_review = True
             # Reset AI tracking when entering review mode
             self.last_ai_move_count = -1
+            self.ai_moved_this_turn = False
             self._refresh_last_move_color()
 
     def step_forward(self):
@@ -279,6 +295,7 @@ class Game:
             self.in_review = False
             # Reset AI tracking when exiting review mode
             self.last_ai_move_count = -1
+            self.ai_moved_this_turn = False
         self._refresh_last_move_color()
 
     def go_to_start(self):
@@ -290,6 +307,7 @@ class Game:
         self.in_review = True
         # Reset AI tracking when going to start
         self.last_ai_move_count = -1
+        self.ai_moved_this_turn = False
         self._refresh_last_move_color()
 
     def go_to_end(self):
@@ -298,6 +316,7 @@ class Game:
         self.in_review = False
         # Reset AI tracking when going to end
         self.last_ai_move_count = -1
+        self.ai_moved_this_turn = False
         self._refresh_last_move_color()
 
     def coords_to_square(self, r, c):
