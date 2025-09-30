@@ -416,8 +416,10 @@ class AI:
             moves = self.get_all_captures(board, self.color)
             for move in self.order_moves(moves, board, depth=0):
                 board.make_move(*move[0], *move[1], switch_turn=False, validate=False)
-                score = self.qsearch(board, alpha, beta, False)
-                board.unmake_move(switch_turn=False)
+                try:
+                    score = self.qsearch(board, alpha, beta, False)
+                finally:
+                    board.unmake_move(switch_turn=False)
                 if score >= beta:
                     return score
                 if score > alpha:
@@ -431,8 +433,10 @@ class AI:
             moves = self.get_all_captures(board, self.opponent_color)
             for move in self.order_moves(moves, board, depth=0):
                 board.make_move(*move[0], *move[1], switch_turn=False, validate=False)
-                score = self.qsearch(board, alpha, beta, True)
-                board.unmake_move(switch_turn=False)
+                try:
+                    score = self.qsearch(board, alpha, beta, True)
+                finally:
+                    board.unmake_move(switch_turn=False)
                 if score <= alpha:
                     return score
                 if score < beta:

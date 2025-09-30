@@ -74,7 +74,10 @@ class Board:
 
     def make_move(self, start_row, start_col, end_row, end_col, switch_turn=True, validate=True):
         if validate:
-            if self.current_turn != self.get_piece(start_row, start_col).color:
+            piece = self.get_piece(start_row, start_col)
+            if not piece:
+                return False
+            if self.current_turn != piece.color:
                 return False
 
             if not (0 <= end_row < 8 and 0 <= end_col < 8):
