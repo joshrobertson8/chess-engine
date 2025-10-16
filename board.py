@@ -5,11 +5,11 @@ import os
 
 class Board:
     images = {}
-    current_turn = 'white'
 
     def __init__(self):
         self.board = self.create_board()
         self.move_history = []
+        self.current_turn = 'white'  # Instance variable, not class variable
         if not Board.images:
             self.load_images()
 
